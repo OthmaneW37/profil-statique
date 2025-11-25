@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Image, TextInput, Button, ScrollView, StyleSheet, Alert, TouchableOpacity, Switch } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, Image, TextInput, Button, ScrollView, StyleSheet, Alert, TouchableOpacity, Switch, Animated } from 'react-native';
 
 export default function ProfilStatique() {
   const [nom, setNom] = useState('Othmane');
@@ -9,6 +9,11 @@ export default function ProfilStatique() {
   const [isEditing, setIsEditing] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(false);
   const [saveCount, setSaveCount] = useState(0);
+  const [isFavorite, setIsFavorite] = useState(false);
+  const [editHistory, setEditHistory] = useState([]);
+  const [showHistory, setShowHistory] = useState(false);
+  const fadeAnim = React.useRef(new Animated.Value(0)).current;
+  const [lastEdited, setLastEdited] = useState(new Date().toLocaleString('fr-FR'));
 
   const validateEmail = (email) => {
     const regex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -24,9 +29,32 @@ export default function ProfilStatique() {
       Alert.alert('Erreur ❌', 'Email invalide');
       return;
     }
+    const newEntry = {
+      id: saveCount + 1,
+      nom,
+      email,
+      telephone,
+      message,
+      date: new Date().toLocaleString('fr-FR'),
+    };
+    setEditHistory([...editHistory, newEntry]);
     setSaveCount(saveCount + 1);
+    setLastEdited(new Date().toLocaleString('fr-FR'));
     Alert.alert('Succès ✅', 'Votre profil a été mis à jour avec succès!');
     setIsEditing(false);
+  };
+
+  const handleExportProfile = () => {
+    const profileData = {
+      nom,
+      email,
+      telephone,
+      message,
+      exportDate: new Date().toLocaleString('fr-FR'),
+      totalModifications: saveCount,
+    };
+    const json = JSON.stringify(profileData, null, 2);
+    Alert.alert('Profil Exporté 📄', `Données:\n${json}`);
   };
 
   const handleReset = () => {
@@ -140,19 +168,47 @@ export default function ProfilStatique() {
         )}
       </View>
 
+      <View style={styles.buttonContainer}>
+        <TouchableOpacity 
+          style={[styles.button, isFavorite ? styles.buttonWarning : styles.buttonSecondary]}
+          onPress={() => setIsFavorite(!isFavorite)}
+        >
+          <Text style={styles.buttonText}>{isFavorite ? '⭐ Favori' : '☆ Ajouter'}</Text>
+        </TouchableOpacity>
+
+        <TouchableOpacity 
+          style={[styles.button, styles.buttonSecondary]}
+          onPress={handleExportProfile}
+        >
+          <Text style={styles.buttonText}>📄 Exporter</Text>
+        </TouchableOpacity>
+      </View>
+
       <TouchableOpacity 
         style={[styles.button, styles.buttonInfo]}
-        onPress={() => {
-          Alert.alert('Informations 📋', `Nom: ${nom}\nEmail: ${email}\nTéléphone: ${telephone}\nMessage: ${message}`);
-        }}
+        onPress={() => setShowHistory(!showHistory)}
       >
-        <Text style={styles.buttonText}>📱 Afficher les infos</Text>
+        <Text style={styles.buttonText}>⏱️ Historique ({editHistory.length})</Text>
       </TouchableOpacity>
+
+      {showHistory && editHistory.length > 0 && (
+        <View style={[styles.card, { backgroundColor: themeColors.cardBg, marginTop: 15 }]}>
+          <Text style={[styles.infoTitle, { color: themeColors.text }]}>📋 Historique des modifications</Text>
+          {editHistory.map((entry) => (
+            <View key={entry.id} style={[styles.historyItem, { borderBottomColor: themeColors.border }]}>
+              <Text style={[styles.historyDate, { color: themeColors.subText }]}>Modif #{entry.id} - {entry.date}</Text>
+              <Text style={[styles.historyText, { color: themeColors.text }]}>📝 {entry.nom} | 📧 {entry.email}</Text>
+            </View>
+          ))}
+        </View>
+      )}
 
       <View style={[styles.card, { backgroundColor: themeColors.cardBg, marginTop: 15 }]}>
         <Text style={[styles.infoTitle, { color: themeColors.text }]}>📊 Statistiques</Text>
         <Text style={[styles.infoText, { color: themeColors.subText }]}>Modifications sauvegardées: {saveCount}</Text>
         <Text style={[styles.infoText, { color: themeColors.subText }]}>Profil complété: {nom && email && telephone && message ? '✅ 100%' : '⚠️ Incomplet'}</Text>
+        <Text style={[styles.infoText, { color: themeColors.subText }]}>Dernière modification: {lastEdited}</Text>
+        <Text style={[styles.infoText, { color: themeColors.subText }]}>Statut favori: {isFavorite ? '⭐ Oui' : '☆ Non'}</Text>
       </View>
     </ScrollView>
   );
@@ -294,6 +350,12 @@ const styles = StyleSheet.create({
     backgroundColor: '#5AC8FA',
     width: '100%',
   },
+  buttonSecondary: {
+    backgroundColor: '#9B59B6',
+  },
+  buttonWarning: {
+    backgroundColor: '#F39C12',
+  },
   buttonText: {
     color: '#fff',
     fontSize: 16,
@@ -309,5 +371,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginBottom: 8,
     color: '#666',
+  },
+  historyItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    borderBottomWidth: 1,
+    borderBottomColor: '#ddd',
+  },
+  historyDate: {
+    fontSize: 12,
+    fontStyle: 'italic',
+    marginBottom: 5,
+  },
+  historyText: {
+    fontSize: 13,
+    fontWeight: '500',
   },
 });
